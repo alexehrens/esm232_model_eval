@@ -1,0 +1,89 @@
+---
+title: "ESM232 - Evaluating Models"
+author: "Alex Ehrens, Bret Folger"
+date: "5/23/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+
+# attach packages
+library(tidyverse)
+library(purrr)
+library(lubridate)
+```
+
+### Read in and explore streamflow data from multiple models
+
+```{r}
+### read in streamflow dataset
+sager = read.table("sager.txt", header=T)
+
+# add date from the existing columns of day, month, year
+sager = sager %>% 
+  mutate(date=make_date(year=year, month=month, day=day))
+
+# multiple results - lets say we've run the model for multiple years, each column
+# is streamflow for a different parameter set
+msage = read.table("sagerm.txt", header=T)
+
+# lets say we know the start date from our earlier output
+msage$date = sager$date
+#head(msage)
+msage$month = sager$month
+msage$year = sager$year
+msage$day = sager$day
+msage$wy = sager$wy
+
+# and we still have observed data from above
+# useful to combine by date to make sure that streamflow and observe match
+
+msage$obs = sager$obs
+
+# how can we plot all results
+# to turn all the columns of different outputs into a single column identified by "run"
+msagel = msage %>% 
+  gather(key="run",value="streamflow", -date, -month, -day, -year, -wy, -obs)
+
+#lets plot water year 1970 otherwise its hard to see
+p1=ggplot(subset(msagel, wy == 1970), aes(as.Date(date), streamflow, col=run))+geom_line()+theme(legend.position = "none")
+# lets add observed streamflow
+p1+geom_line(aes(as.Date(date), obs), size=2, col="black", linetype=2)+labs(y="Streamflow", x="Date")
+```
+
+### Create metric for evaluation and test across models
+
+```{r}
+# source performance metric - correlation between annual maximum streamflow
+source("maxannual_cor.R")
+
+# run function to test performance for each model
+res = msage %>% 
+  select(-date, -month, -day, -year, -wy, -obs) %>% 
+  map_dbl(~check_maxannual( o=msage$obs, month=msage$month, day=msage$day, year=msage$year, wy=msage$wy, m=.x))
+
+summary(res)
+
+# add unique identifier for each model tested
+simnames = names(msage %>% 
+                   select(-date, -month, -day,-year,-wy, -obs))
+
+# create dataframe of results with identifiers
+results = cbind.data.frame(simnames=simnames, maxannual_cor=res)
+
+# look at range of metrics
+summary(results)
+
+# pull out name of model that performs best
+best <- results %>% 
+  filter(maxannual_cor == max(maxannual_cor))
+
+best
+
+# graph range of performance measures
+resultsl = results %>% gather(key="metric",value="value", -simnames)
+ggplot(resultsl, aes(metric, value))+geom_boxplot()+facet_wrap(~metric, scales="free")
+```
+
+### END ASSIGNMENT
