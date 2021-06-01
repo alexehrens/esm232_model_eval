@@ -1,0 +1,21 @@
+---
+title: "ESM232 - Calibration and Parameter Uncertainty"
+author: "Alex Ehrens, Bret Folger"
+date: "6/1/2021"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+#library(ecohydroexample)
+library(tidyverse)
+library(Hmisc)
+```
+
+```{r setup, echo = FALSE}
+# load in simulated streamflow data
+load("simQ.rda")
+load("simstats.rda")
+nparm = nrow(simstats) 
+```
+
